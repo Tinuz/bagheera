@@ -1,0 +1,19 @@
+package bagheera;
+
+option optimize_for = SPEED;
+option java_package = "com.mozilla.bagheera";
+option java_outer_classname = "BagheeraProto";
+
+message DataPacket {
+  // reserve 1
+	optional int64 numeric_id = 2;
+	optional string string_id = 3;
+	optional string namespace = 4;
+	optional bytes payload = 5;
+	enum PayloadType {
+	  BINARY = 0;
+	  JSON = 1;
+	  TEXT = 2;
+	}
+	optional PayloadType payload_type = 6 [default = BINARY];
+}
