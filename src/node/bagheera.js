@@ -1,5 +1,6 @@
 var express = require('express'),
     namespace = require('express-namespace');
+var uuid = require("node-uuid");
 var redis = require("redis"),
     client = redis.createClient();
         
@@ -9,22 +10,36 @@ app.configure(function() {
     app.use(express.bodyParser());
 });
 
-app.namespace('/:name/:id', function() {
+app.namespace('/submit/:name/:id', function() {
     app.post('/', function(req, res) {
+        req.accepts('application/json');
         var name = req.params.name;
         var id = req.params.id;
-        client.lpush(id, req.body);
+        if (id == null) {
+            id = uuid.v4();
+        }
+        client.select(name);
+        client.set(id, JSON.stringify(req.body));
+        
+        res.send(id);
     });
     
     app.get('/', function(req, res) {
         var name = req.params.name;
         var id = req.params.id;
-        res.send("Received GET for name:" + name + " and id:" + id);
+        client.select(name);
+        var data = client.get(id);
+        if (data != null) {
+            res.send(JSON.parse(client.get(id)));
+        } else {
+            res.send("Not found!", 404);
+        }
     });
     
     app.del('/', function(req, res) {
         var name = req.params.name;
         var id = req.params.id;
+        //client.select(name);
         res.send("Received DELETE for name:" + name + " and id:" + id);
     });
 });

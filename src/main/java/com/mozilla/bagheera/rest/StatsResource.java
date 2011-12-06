@@ -48,15 +48,17 @@ public class StatsResource extends ResourceBase {
             sb.append("numDels=").append(stats.numDels.get());
         }
         
-        return Response.ok(sb.toString(), MediaType.APPLICATION_JSON).build();
+        return Response.ok(sb.toString(), MediaType.TEXT_PLAIN).build();
     }
     
     @GET
     @Path("reset")
-    public void resetStats() {
+    public Response resetStats() {
         for (Map.Entry<String, Stats> entry : rs.getStatsMap().entrySet()) {
             entry.getValue().resetAll();
         }
+        
+        return Response.ok().build();
     }
     
 }
