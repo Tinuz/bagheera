@@ -25,6 +25,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.core.Response;
+
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParseException;
@@ -34,12 +37,14 @@ import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.ObjectNode;
 
 import com.hazelcast.core.Hazelcast;
+import com.maxmind.geoip.LookupService;
+import com.maxmind.geoip.Region;
 
 
 /**
  * Utility class for aggregating incoming pings with existing documents.
  */
-public class MetricsPingPreCommit implements PreCommitHook {
+public class MetricsPingPreCommit extends AbstractPreCommitHook {
     private static final Logger LOG = Logger.getLogger(MetricsPingPreCommit.class);
     
 	private ObjectMapper objectMapper;
@@ -64,6 +69,8 @@ public class MetricsPingPreCommit implements PreCommitHook {
 	
 	private Date referenceDate = new Date();
 	
+	private String remoteIpAddress;
+
 	public MetricsPingPreCommit() {
 		objectMapper = new ObjectMapper();
 		dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
@@ -125,6 +132,9 @@ public class MetricsPingPreCommit implements PreCommitHook {
 		ObjectNode incoming = (ObjectNode)uncheckedIncoming;
 		
 		aggregate.put("uuid", incoming.get("uuid").getTextValue());
+		
+		// TODO: GeoLocation:
+		setGeoLocation(aggregate);
 
 		JsonNode thisPingTime = incoming.get("thisPingTime");
 		JsonNode lastPingTime = incoming.get("lastPingTime");
@@ -238,6 +248,34 @@ public class MetricsPingPreCommit implements PreCommitHook {
 		dataPoints.add(newDataPoint);
 	}
 
+	private void setGeoLocation(ObjectNode aggregate) {
+		try {
+
+			// TODO: use the caching capability else we'll die in performance.
+			// You should only call LookupService once, especially if you use
+			// GEOIP_MEMORY_CACHE mode, since the LookupService constructor takes up
+			// resources to load the GeoIP.dat file into memory
+			//LookupService cl = new LookupService(dbfile,LookupService.GEOIP_STANDARD);
+			// FIXME: hard coded file path
+			String MAXMIND_DB_PATH = "/usr/local/share/GeoIP/GeoIP.dat";
+//			LookupService geoIpLookupService = new LookupService(MAXMIND_DB_PATH, LookupService.GEOIP_MEMORY_CACHE);
+			LookupService geoIpLookupService = new LookupService(MAXMIND_DB_PATH);
+
+			Region region = geoIpLookupService.getRegion(remoteIpAddress);
+			
+			// FIXME: testing only. DO NOT STORE IP
+		    aggregate.put("geo_ip", remoteIpAddress);
+		    aggregate.put("geo_region", region.region == null ? region.region : "Unknown");
+		    aggregate.put("geo_country", region.countryCode == null ? region.countryCode : "Unknown");
+
+		    geoIpLookupService.close();
+		}
+		catch (IOException e) {
+		    System.out.println("IO Exception");
+	       e.printStackTrace();
+		}
+	}
+
 	private Date parseDateString(String dateText) {
 		Date parsedDate = null;
 		try {
@@ -341,4 +379,25 @@ public class MetricsPingPreCommit implements PreCommitHook {
 		
 		return root;
 	}
+
+	@Override
+	public void setRequest(HttpServletRequest request) {
+        remoteIpAddress = request.getRemoteAddr();
+	}
+
+	@Override
+	public boolean isCustomResponseRequired() {
+		// TODO: If we need to update the client's UUID
+		// return true;
+		// else
+		return false;
+	}
+
+	@Override
+	public Response getCustomResponse() {
+		// TODO: create a response with the new UUID
+		return super.getCustomResponse();
+	}
+	
+	
 }

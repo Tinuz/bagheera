@@ -22,10 +22,25 @@ package com.mozilla.bagheera.rest.interceptors;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 
-public interface PreCommitHook {
 
-    public void setRequest(HttpServletRequest request);
-    public String preCommit(String mapName, String key, String value);
-    public boolean isCustomResponseRequired();
-    public Response getCustomResponse();
+/**
+ * Utility class for aggregating incoming pings with existing documents.
+ */
+public abstract class AbstractPreCommitHook implements PreCommitHook {
+
+	@Override
+	public void setRequest(HttpServletRequest request) {
+		// Do nothing
+	}
+
+	@Override
+	public boolean isCustomResponseRequired() {
+		return false;
+	}
+
+	@Override
+	public Response getCustomResponse() {
+		return null;
+	}
+	
 }
