@@ -28,6 +28,8 @@ import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioDatagramChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
+import redis.clients.jedis.Jedis;
+
 import com.hazelcast.config.Config;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.Hazelcast;
@@ -62,6 +64,8 @@ public class BagheeraNio {
             
             sb.bind(new InetSocketAddress(port));
         } else {
+            Jedis jedis = new Jedis("localhost");
+            
             // HTTP
             NioServerSocketChannelFactory channelFactory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
             ServerBootstrap sb = new ServerBootstrap(channelFactory);
@@ -69,19 +73,19 @@ public class BagheeraNio {
             sb.bind(new InetSocketAddress(port));
         }
         
-        boolean initHazelcast = Boolean.parseBoolean(System.getProperty("init.hazelcast.onstartup", "true"));
-        if (initHazelcast) {
-            // Initialize Hazelcast now rather than waiting for the first request
-            Hazelcast.getDefaultInstance();
-            Config config = Hazelcast.getConfig();
-            for (Map.Entry<String, MapConfig> entry : config.getMapConfigs().entrySet()) {
-                String mapName = entry.getKey();
-                // If the map contains a wildcard then we need to wait to initialize
-                if (!mapName.contains("*")) {
-                    Hazelcast.getMap(entry.getKey());
-                }
-            }
-        }
+//        boolean initHazelcast = Boolean.parseBoolean(System.getProperty("init.hazelcast.onstartup", "true"));
+//        if (initHazelcast) {
+//            // Initialize Hazelcast now rather than waiting for the first request
+//            Hazelcast.getDefaultInstance();
+//            Config config = Hazelcast.getConfig();
+//            for (Map.Entry<String, MapConfig> entry : config.getMapConfigs().entrySet()) {
+//                String mapName = entry.getKey();
+//                // If the map contains a wildcard then we need to wait to initialize
+//                if (!mapName.contains("*")) {
+//                    Hazelcast.getMap(entry.getKey());
+//                }
+//            }
+//        }
     }
     
 }

@@ -27,8 +27,10 @@ import org.jboss.netty.handler.codec.http.HttpContentCompressor;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 
+import redis.clients.jedis.Jedis;
+
 public class HttpServerPipelineFactory implements ChannelPipelineFactory {
-	
+
 	public HttpServerPipelineFactory() {
 	}
 	
@@ -47,7 +49,7 @@ public class HttpServerPipelineFactory implements ChannelPipelineFactory {
 		pipeline.addLast("decoder", new HttpRequestDecoder());
 		pipeline.addLast("aggregator", new HttpChunkAggregator(65536));
 		pipeline.addLast("encoder", new HttpResponseEncoder());
-		pipeline.addLast("deflater", new HttpContentCompressor());		
+		pipeline.addLast("deflater", new HttpContentCompressor());
 		pipeline.addLast("handler", new HttpRequestHandler());
 		
 		return pipeline;

@@ -43,14 +43,20 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.util.CharsetUtil;
 
+import redis.clients.jedis.Jedis;
+
 import com.hazelcast.core.Hazelcast;
 
 public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
 
-    private HttpRequest request;
     private static final Pattern uriPattern = Pattern.compile("/submit/([^/]+)/*([^/]*)");
     
-    public HttpRequestHandler() {
+    private HttpRequest request;
+    private Jedis jedis;
+    
+    public HttpRequestHandler() { };
+    public HttpRequestHandler(Jedis jedis) {
+        this.jedis = jedis;
     }
     
     @Override
@@ -69,8 +75,9 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler {
                 }
                 ChannelBuffer content = request.getContent();
                 if (content.readable()) {
-                    Map<String,String> m = Hazelcast.getMap(namespace);
-                    m.put(id, content.toString(CharsetUtil.UTF_8));
+                    jedis.hset(namespace, id, content.toString(CharsetUtil.UTF_8));
+                    //Map<String,String> m = Hazelcast.getMap(namespace);
+                    //m.put(id, content.toString(CharsetUtil.UTF_8));
                     status = HttpResponseStatus.OK;
                 }
             }

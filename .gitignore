@@ -12,6 +12,7 @@ target
 *.exe
 *.o
 *.so
+*Proto.java
 
 # Packages #
 ############

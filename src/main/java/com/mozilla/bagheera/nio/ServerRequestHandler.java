@@ -19,7 +19,7 @@ public class ServerRequestHandler extends SimpleChannelUpstreamHandler {
         if (dp.hasNamespace() && dp.hasPayload() && dp.hasPayloadType()) {
             if (dp.getPayloadType() == PayloadType.JSON || dp.getPayloadType() == PayloadType.TEXT) {
                 Map<String,String> m = Hazelcast.getMap(dp.getNamespace());
-                m.put(new String(dp.getStringId()), dp.getPayload().toStringUtf8());
+                m.put(dp.getStringId(), dp.getPayload().toStringUtf8());
             }
         }
     }
