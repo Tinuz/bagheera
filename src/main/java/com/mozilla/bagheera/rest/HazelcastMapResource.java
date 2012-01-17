@@ -145,6 +145,9 @@ public class HazelcastMapResource extends ResourceBase {
             return Response.status(Status.NOT_ACCEPTABLE).build();
         }
         
+        // Placeholder for a potential custom response from the PreCommitHook
+        Response response = null;
+        
         // If this needs to call preCommit do it here
         boolean preCommit = props.getWildcardProperty(name + PRE_COMMIT, false);
         if (preCommit) {
@@ -156,8 +159,8 @@ public class HazelcastMapResource extends ResourceBase {
                     data = pch.preCommit(name, id, data);
                     
                     if (pch.isCustomResponseRequired()) {
-                    	// TODO: return the custom response from
-                    	// pch.getCustomResponse();
+                    	// return the custom response
+                    	response = pch.getCustomResponse();
                     }
                 } catch (Exception e) {
                     LOG.error("Exception caught during preCommit attempt", e);
@@ -173,12 +176,17 @@ public class HazelcastMapResource extends ResourceBase {
         stats.numPuts.incrementAndGet();
         stats.lastUpdate = System.currentTimeMillis();
         
-        boolean postResponse = props.getWildcardProperty(name + POST_RESPONSE, false);
-        if (postResponse) {
-            return Response.created(URI.create(id)).build();
+        if (response == null) {
+        	// We didn't get a custom response from PreCommit Hook
+            boolean postResponse = props.getWildcardProperty(name + POST_RESPONSE, false);
+            if (postResponse) {
+                response = Response.created(URI.create(id)).build();
+            } else {
+            	response = Response.noContent().build();
+            }
         }
 
-        return Response.noContent().build();
+    	return response;
     }
 
     @GET

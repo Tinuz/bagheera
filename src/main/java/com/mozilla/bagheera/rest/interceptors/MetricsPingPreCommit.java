@@ -37,8 +37,8 @@ import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.ObjectNode;
 
 import com.hazelcast.core.Hazelcast;
+import com.maxmind.geoip.Country;
 import com.maxmind.geoip.LookupService;
-import com.maxmind.geoip.Region;
 
 
 /**
@@ -48,12 +48,6 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
     private static final Logger LOG = Logger.getLogger(MetricsPingPreCommit.class);
     
 	private ObjectMapper objectMapper;
-//	private static String[] searchEngineBuckets = {"Amazon.com", "Bing", "Google", "Yahoo", "Other"};
-//	private static String[] searchSources = {"searchbar", "urlbar", "abouthome", "contextmenu"};
-//	private static String[] sessionKeys = {"completedSessions", "completedSessionTime", 
-//		"completedSessionActivityRatio", "abortedSessions", "abortedSessionTime", 
-//		"abortedSessionActivityRatio", "abortedSessionMed", "currentSessionTime", 
-//		"currentSessionActivityRatio", "aboutSessionRestoreStarts"};
 	private static String[] simpleMeasureKeys = {"uptime", "main", "firstPaint", 
 		"sessionRestored", "isDefaultBrowser", "crashCountSubmitted",
 		"crashCountPending", "profileAge", "placesPagesCount",
@@ -79,7 +73,7 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
 	}
 	
 	@Override
-	public String preCommit(String mapName, String id, String newDocument) {// throws JsonParseException, JsonMappingException, IOException {
+	public String preCommit(String mapName, String id, String newDocument) {
 		String result = null;
 
 		try {
@@ -133,7 +127,7 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
 		
 		aggregate.put("uuid", incoming.get("uuid").getTextValue());
 		
-		// TODO: GeoLocation:
+		// GeoLocation:
 		setGeoLocation(aggregate);
 
 		JsonNode thisPingTime = incoming.get("thisPingTime");
@@ -250,23 +244,20 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
 
 	private void setGeoLocation(ObjectNode aggregate) {
 		try {
-
 			// TODO: use the caching capability else we'll die in performance.
 			// You should only call LookupService once, especially if you use
 			// GEOIP_MEMORY_CACHE mode, since the LookupService constructor takes up
 			// resources to load the GeoIP.dat file into memory
 			//LookupService cl = new LookupService(dbfile,LookupService.GEOIP_STANDARD);
-			// FIXME: hard coded file path
+			// FIXME: hard coded file path - move to props file
 			String MAXMIND_DB_PATH = "/usr/local/share/GeoIP/GeoIP.dat";
 //			LookupService geoIpLookupService = new LookupService(MAXMIND_DB_PATH, LookupService.GEOIP_MEMORY_CACHE);
 			LookupService geoIpLookupService = new LookupService(MAXMIND_DB_PATH);
 
-			Region region = geoIpLookupService.getRegion(remoteIpAddress);
-			
-			// FIXME: testing only. DO NOT STORE IP
-		    aggregate.put("geo_ip", remoteIpAddress);
-		    aggregate.put("geo_region", region.region == null ? region.region : "Unknown");
-		    aggregate.put("geo_country", region.countryCode == null ? region.countryCode : "Unknown");
+			Country country = geoIpLookupService.getCountry(remoteIpAddress);
+		    aggregate.put("geo_country", country == null ? "Unknown" : country.getCode());
+		    
+		    // TODO: Region-level?
 
 		    geoIpLookupService.close();
 		}
