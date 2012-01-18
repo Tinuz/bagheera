@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.maxmind.geoip.LookupService;
 import com.mozilla.bagheera.rest.properties.WildcardProperties;
 import com.mozilla.bagheera.rest.stats.Stats;
 import com.mozilla.bagheera.rest.validation.Validator;
@@ -37,7 +38,8 @@ public class RESTSingleton {
     private final WildcardProperties props;
     private final Map<String,Stats> statsMap;
     private final Validator validator;
-    
+    private final LookupService geoIpLookupService;
+
     private RESTSingleton() {
         props = new WildcardProperties();
         InputStream in = null;
@@ -63,13 +65,37 @@ public class RESTSingleton {
         
         validator = new Validator(props);
         statsMap = new HashMap<String,Stats>();
+        
+        // Initialize GeoIP if needed.
+        String maxMindDbPath = props.getProperty("general.maxmind.db.path");
+        if (maxMindDbPath != null) {
+            geoIpLookupService = initializeGeoIpLookupService(maxMindDbPath);
+        } else {
+            geoIpLookupService = null;
+        }
+        
     }
     
+    private LookupService initializeGeoIpLookupService(String maxMindDbPath) {
+        LookupService lookupService = null;
+        try {
+            lookupService  = new LookupService(maxMindDbPath, LookupService.GEOIP_MEMORY_CACHE);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return lookupService;
+    }
+
     public static RESTSingleton getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new RESTSingleton();
         }
         return INSTANCE;
+    }
+
+    public LookupService getGeoIpLookupService() {
+        return geoIpLookupService;
     }
     
     public WildcardProperties getWildcardProperties() {

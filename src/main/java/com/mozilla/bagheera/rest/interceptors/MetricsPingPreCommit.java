@@ -39,6 +39,7 @@ import org.codehaus.jackson.node.ObjectNode;
 import com.hazelcast.core.Hazelcast;
 import com.maxmind.geoip.Country;
 import com.maxmind.geoip.LookupService;
+import com.mozilla.bagheera.rest.RESTSingleton;
 
 
 /**
@@ -54,9 +55,9 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
 		"placesBookmarksCount", "addonCount"};
 	
 	private static String[] envKeys = {"OS", "appID", "appVersion", "appVendor", "appName", 
-       "appBuildID", "appABI", "appUpdateChannel", "appDistribution",
-       "appDistributionVersion", "platformBuildID", "platformVersion",
-       "locale","name","version","cpucount","memsize","arch"};
+	   "appBuildID", "appABI", "appUpdateChannel", "appDistribution",
+	   "appDistributionVersion", "platformBuildID", "platformVersion",
+	   "locale","name","version","cpucount","memsize","arch"};
 
 	
 	private SimpleDateFormat dateFormat;
@@ -92,23 +93,23 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
 	public String preCommitWithExceptions(String mapName, String id, String newDocument) throws JsonParseException, JsonMappingException, IOException {
 		// 1. Retrieve existing document by id (to be extracted to a base class)
 		Map<String, String> m = Hazelcast.getMap(mapName);
-        String existingDocument = m.get(id);
-        JsonNode aggregate;
-        if (existingDocument == null) {
-        	// This is the first submission for the given ID
-        	aggregate = createEmptyAggregate();
-        } else {
-        	// Time to merge with the previous document.
-        	aggregate = objectMapper.readValue(existingDocument, JsonNode.class);
-        }
-        
-        JsonNode incoming = objectMapper.readValue(newDocument, JsonNode.class);
+		String existingDocument = m.get(id);
+		JsonNode aggregate;
+		if (existingDocument == null) {
+			// This is the first submission for the given ID
+			aggregate = createEmptyAggregate();
+		} else {
+			// Time to merge with the previous document.
+			aggregate = objectMapper.readValue(existingDocument, JsonNode.class);
+		}
+		
+		JsonNode incoming = objectMapper.readValue(newDocument, JsonNode.class);
 
 		// 2. Apply incoming json to document
-        applyToAggregate(aggregate, incoming);
-        
+		applyToAggregate(aggregate, incoming);
+		
 		// 3. Return the aggregated document as a String
-        return objectMapper.writeValueAsString(aggregate);
+		return objectMapper.writeValueAsString(aggregate);
 	}
 
 	private void applyToAggregate(JsonNode uncheckedAggregate, JsonNode uncheckedIncoming) {
@@ -243,27 +244,14 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
 	}
 
 	private void setGeoLocation(ObjectNode aggregate) {
-		try {
-			// TODO: use the caching capability else we'll die in performance.
-			// You should only call LookupService once, especially if you use
-			// GEOIP_MEMORY_CACHE mode, since the LookupService constructor takes up
-			// resources to load the GeoIP.dat file into memory
-			//LookupService cl = new LookupService(dbfile,LookupService.GEOIP_STANDARD);
-			// FIXME: hard coded file path - move to props file
-			String MAXMIND_DB_PATH = "/usr/local/share/GeoIP/GeoIP.dat";
-//			LookupService geoIpLookupService = new LookupService(MAXMIND_DB_PATH, LookupService.GEOIP_MEMORY_CACHE);
-			LookupService geoIpLookupService = new LookupService(MAXMIND_DB_PATH);
-
+		LookupService geoIpLookupService = RESTSingleton.getInstance().getGeoIpLookupService();
+		if (geoIpLookupService != null) {
 			Country country = geoIpLookupService.getCountry(remoteIpAddress);
-		    aggregate.put("geo_country", country == null ? "Unknown" : country.getCode());
-		    
-		    // TODO: Region-level?
+			aggregate.put("geo_country", country == null ? "Unknown" : country.getCode());
 
-		    geoIpLookupService.close();
-		}
-		catch (IOException e) {
-		    System.out.println("IO Exception");
-	       e.printStackTrace();
+			// TODO: Region-level?
+		} else {
+			LOG.warn("GeoIP Service is not available. Skipping GeoIP Lookup");
 		}
 	}
 
