@@ -1,12 +1,25 @@
+var util = require('util');
 var express = require('express'),
     namespace = require('express-namespace');
 var uuid = require("node-uuid");
-//var redis = require("redis"),
-//    client = redis.createClient();
-var fs = require("fs");
-var stream = fs.createWriteStream("bagheera.wal");
-var app = express.createServer();
 
+// command line arguments
+var cli = require('commander');
+cli
+    .version('0.1')
+    .option('-p, --port [port]', "port number to listen on (default: 8080)", parseInt)
+    .option('--memcache_host')
+    .parse(process.argv);
+
+// setup memcache/hazelcast client
+var memcache = require('memcache'),
+    client = new memcache.Client();
+client.connect();
+function memcache_client_close() {
+    client.close();
+}
+
+var app = express.createServer();
 app.configure(function() {
     app.use(express.bodyParser());
 });
@@ -19,14 +32,9 @@ app.namespace('/submit/:name/:id', function() {
         if (id == null) {
             id = uuid.v4();
         }
-        //client.select(name);
-        //client.hset(name, id, JSON.stringify(req.body));
-        stream.write(name);
-        stream.write("\u0001");
-        stream.write(id);
-        stream.write("\u0001");
-        stream.write(JSON.stringify(req.body));
-        stream.write("\n");
+
+        // Put entry into memcache/Hazelcast:
+        client.set(name + ":" + id, JSON.stringify(req.body));
         
         res.send(id);
     });
@@ -34,8 +42,7 @@ app.namespace('/submit/:name/:id', function() {
     app.get('/', function(req, res) {
         var name = req.params.name;
         var id = req.params.id;
-        client.select(name);
-        var data = client.get(id);
+        var data = client.get(name + ":" + id);
         if (data != null) {
             res.send(JSON.parse(client.get(id)));
         } else {
@@ -46,16 +53,23 @@ app.namespace('/submit/:name/:id', function() {
     app.del('/', function(req, res) {
         var name = req.params.name;
         var id = req.params.id;
-        //client.select(name);
+        client.delete(name + ":" + id);
         res.send("Received DELETE for name:" + name + " and id:" + id);
     });
 });
 
-process.on('exit', function() {
+// make sure to close memcache client connection
+process.on('SIGINT', function() {
     console.log("Shutting down.");
-    //client.quit();
-    stream.end();
+    memcache_client_close();
 });
 
-app.listen(8080);
-console.log("Server running on port 8080.")
+process.on('SIGTERM', function() {
+    console.log("Shutting down.");
+    memcache_client_close();
+});
+
+
+port = cli.port ? cli.port : 8080;
+app.listen(port);
+console.log("Server running on port %d.", port)
