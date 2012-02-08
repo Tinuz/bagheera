@@ -219,7 +219,13 @@ public class MetricsPingPreCommit extends AbstractPreCommitHook {
 		// Simple measurements:
 		ObjectNode newSimpleNode = objectMapper.createObjectNode();
 		ObjectNode simpleNodeIn = (ObjectNode)incoming.get("simpleMeasurements");
-		aggregate.put("addons", simpleNodeIn.get("addons"));
+		JsonNode addonsIn = simpleNodeIn.get("addons");
+		if (addonsIn.isArray()) {
+			aggregate.put("addons", simpleNodeIn.get("addons"));
+		} else { 
+			LOG.warn("No addons found in incoming object");
+			aggregate.put("addons", objectMapper.createArrayNode());
+		}
 		
 		// Use specific defaults for each simpleMeasureKeys entry.
 		// We need to avoid having jagged arrays, otherwise we lose the
